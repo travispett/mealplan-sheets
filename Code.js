@@ -1,6 +1,8 @@
 function setCalendar() {
   Logger.log('Running task :: setCalendar :: ' + new Date().toISOString());
 
+  var oneWeek = 7;
+
   var calId = 'pk4a976hlrr7r9rn1dapb6b1lk@group.calendar.google.com';
   var sheet = SpreadsheetApp.getActiveSheet();
   var cal = CalendarApp.getCalendarById(calId);
@@ -9,18 +11,18 @@ function setCalendar() {
   var mealStartRow = 23;
   var startCol = 2;
 
-  var dateDataRange = sheet.getRange(dateStartRow, startCol, 1, 7);
-  var mealDataRange = sheet.getRange(mealStartRow, startCol, 1, 7);
+  var dateDataRange = sheet.getRange(dateStartRow, startCol, 1, oneWeek);
+  var mealDataRange = sheet.getRange(mealStartRow, startCol, 1, oneWeek);
 
   var dateData = dateDataRange.getValues();
   var mealData = mealDataRange.getValues();
   dateData = dateData[0] || [];
-  mealData = mealData[0] || [];
+  var mealNames = mealData[0] || [];
 
-  if (!cal || !sheet || mealData.length !== 7 || dateData.length !== 7) {
+  if (!cal || !sheet || mealNames.length !== oneWeek || dateData.length !== oneWeek) {
     Logger.log(
       'Error thrown. [mealData length: ' +
-        mealData.length +
+        mealNames.length +
         '] [dateData.length: ' +
         dateData.length +
         ']'
@@ -29,31 +31,37 @@ function setCalendar() {
     return;
   }
 
-  dateData.forEach(function(thisDate, idx) {
-    if (idx < mealData.length && mealData[idx] !== null && thisDate !== null) {
-      var thisMeal = mealData[idx] || '';
-      var events = cal.getEventsForDay(thisDate);
-
-      if (!events.length) {
-        createMeal(cal, thisMeal, thisDate);
-      } else {
-        var activeMealEvent = events[0];
-        var activeMealTitle = activeMealEvent.getTitle();
-
-        if (activeMealEvent.isAllDayEvent() && activeMealTitle !== thisMeal) {
-          Logger.log(
-            'Changing meal: ' +
-              activeMealTitle +
-              ' to ' +
-              thisMeal +
-              ' on ' +
-              thisDate.toGMTString()
-          );
-          activeMealEvent.setTitle(thisMeal);
-        }
-      }
+  dateData.forEach(function(date, index) {
+    if (index >= mealNames.length || mealNames[index] === null || date === null) {
+      return;
     }
+
+    var mealName = mealNames[index] || '';
+    var events = cal.getEventsForDay(date);
+
+    // TODO: A nice meal object with create and update functions would make
+    // the logic in these much easier to work with.
+    if (!events.length) {
+      return createMeal(cal, mealName, date);
+    }
+
+    var existingMeal = events[0];
+    updateActiveMeal(existingMeal, mealName, date);
   });
+}
+
+function updateActiveMeal(existingMeal, newMealName, date) {
+  var existingMealName = existingMeal.getTitle();
+
+  if (existingMealName === newMealName || !existingMeal.isAllDayEvent()) {
+    return;
+  }
+
+  Logger.log(
+    'Changing meal: ' + existingMealName + ' to ' + newMealName + ' on ' + date.toGMTString()
+  );
+
+  existingMeal.setTitle(newMealName);
 }
 
 function createMeal(cal, mealTitle, mealDate) {
@@ -64,6 +72,7 @@ function createMeal(cal, mealTitle, mealDate) {
 function setCalendarTrigger() {
   Logger.log('Setting trigger :: ' + new Date().toISOString());
 
+  // TODO: Check for existing trigger.
   ScriptApp.newTrigger('setCalendar')
     .timeBased()
     .atHour(2)
@@ -71,6 +80,7 @@ function setCalendarTrigger() {
     .create();
 }
 
+// Create a menu in the Sheet for adding the trigger.
 function onOpen() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var menuEntries = [{ name: 'Set Calendar Trigger', functionName: 'setCalendarTrigger' }];
