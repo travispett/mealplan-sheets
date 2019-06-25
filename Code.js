@@ -5,10 +5,11 @@ function setCalendar() {
 
   var calId = 'pk4a976hlrr7r9rn1dapb6b1lk@group.calendar.google.com';
   var sheet = SpreadsheetApp.getActiveSheet();
+  var configSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Config');
   var cal = CalendarApp.getCalendarById(calId);
 
-  var dateStartRow = 16;
-  var mealStartRow = 23;
+  var dateStartRow = parseInt(configSheet.getRange(2, 1).getValue(), 10);
+  var mealStartRow = parseInt(configSheet.getRange(2, 2).getValue(), 10);
   var startCol = 2;
 
   var dateDataRange = sheet.getRange(dateStartRow, startCol, 1, oneWeek);
